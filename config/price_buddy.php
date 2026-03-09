@@ -55,8 +55,8 @@ return [
             'xpath' => [],
             'regex' => [
                 '~\"price\"\:\s?\"(.*?)\"~',        // Something that looks like a price, in a json object, eg "price": "99.99"
-                '~>\$(\d+(\.\d{2})?)<~',            // Something that looks like a price, in a tag, eg >$99.99<
-                '~\$(\d+(\.\d{2})?)~',              // Something that looks like a price, not in a tag
+                '~>\$([\d,]+(\.\d{2})?)<~',          // Something that looks like a price, in a tag, eg >$99.99< or >$3,924.80<
+                '~\$([\d,]+(\.\d{2})?)~',            // Something that looks like a price, not in a tag
             ],
         ],
         'image' => [
