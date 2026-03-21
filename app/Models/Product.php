@@ -346,10 +346,12 @@ class Product extends Model
     public function getPriceCache(): Collection
     {
         return collect($this->price_cache)
-            ->sortBy([
-                fn ($item) => StockStatus::fromScrapedValue($item['availability'] ?? null)->getSortOrder(),
-                ['unit_price', 'asc'],
-            ])
+            ->sort(function ($a, $b) {
+                $stockA = StockStatus::fromScrapedValue($a['availability'] ?? null)->getSortOrder();
+                $stockB = StockStatus::fromScrapedValue($b['availability'] ?? null)->getSortOrder();
+
+                return $stockA <=> $stockB ?: $a['unit_price'] <=> $b['unit_price'];
+            })
             ->map(fn ($price) => PriceCacheDto::fromArray($price))
             ->values();
     }
@@ -433,10 +435,12 @@ class Product extends Model
                     'unit_of_measure' => $this->unit_of_measure,
                 ];
             })
-            ->sortBy([
-                fn ($item) => StockStatus::fromScrapedValue($item['availability'] ?? null)->getSortOrder(),
-                ['unit_price', 'asc'],
-            ])
+            ->sort(function ($a, $b) {
+                $stockA = StockStatus::fromScrapedValue($a['availability'] ?? null)->getSortOrder();
+                $stockB = StockStatus::fromScrapedValue($b['availability'] ?? null)->getSortOrder();
+
+                return $stockA <=> $stockB ?: $a['unit_price'] <=> $b['unit_price'];
+            })
             ->values();
     }
 
@@ -490,13 +494,42 @@ class Product extends Model
      */
     public function updatePrices(): bool
     {
+        $scrapeResults = [];
+
         $successful = $this->urls
-            ->map(fn (Url $url) => $url->updatePrice()) // @phpstan-ignore-line
+            ->map(function ($url) use (&$scrapeResults) {
+                /** @var Url $url */
+                $scrape = $url->scrape();
+                $scrapeResults[$url->getKey()] = $scrape;
+
+                return $url->updatePrice(data_get($scrape, 'price'), $scrape);
+            })
             ->filter();
 
         $this->updatePriceCache();
+        $this->updateImageFromBestPrice($scrapeResults);
 
         return $successful->count() === $this->urls->count();
+    }
+
+    /**
+     * Update the product image from the best-priced (first in cache) URL's scrape result.
+     *
+     * @param  array<int, array>  $scrapeResults
+     */
+    protected function updateImageFromBestPrice(array $scrapeResults): void
+    {
+        $bestUrlId = data_get($this->price_cache, '0.url_id');
+
+        if (! $bestUrlId || empty($scrapeResults[$bestUrlId])) {
+            return;
+        }
+
+        $image = data_get($scrapeResults[$bestUrlId], 'image');
+
+        if (! empty($image) && strlen($image) < ScrapeUrl::MAX_STR_LENGTH) {
+            $this->update(['image' => $image]);
+        }
     }
 
     /**
