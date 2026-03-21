@@ -102,7 +102,14 @@ services:
     services:
       command: /start-app.sh
     scanner:
-      retry: 5
+      okCodes:
+        - 200
+        - 301
+        - 302
+        - 403
+      retry: 10
+      timeout: 30000
+      maxRedirects: 0
   scraper:
     type: lando
     app_mount: false

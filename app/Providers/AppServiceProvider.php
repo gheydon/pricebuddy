@@ -18,6 +18,7 @@ use Filament\View\PanelsRenderHook;
 use Illuminate\Foundation\Console\AboutCommand;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -29,6 +30,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if (str_starts_with(config('app.url'), 'https://')) {
+            URL::forceScheme('https');
+        }
+
         $this->registerPolicies();
         $this->registerFilamentSettings();
         $this->setConfigFromAppSettings();
